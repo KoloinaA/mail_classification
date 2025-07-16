@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import joblib
+import streamlit as st
 
 df = pd.read_csv("SMSSpamCollection", sep = '\t', header= None, names= ['label', 'message'])
 print(df.head())
@@ -45,3 +46,16 @@ for text, pred in zip(sample, predictions):
 #sauvegarde du modele
 joblib.dump(model, 'spam_classifer.pkl')
 joblib.dump(vectorizer, 'vectorizer.pkl')
+
+#interface graphique
+# Remplacer la partie Streamlit par :
+st.title("Détecteur de Spam")
+user_input = st.text_area("Collez votre email ici", height=200)
+
+if st.button("Analyser"):
+    # Vectoriser l'input
+    input_vectorized = vectorizer.transform([user_input])
+    # Faire la prédiction
+    prediction = model.predict(input_vectorized)[0]
+    # Afficher le résultat
+    st.success(f"Résultat : {'SPAM' if prediction == 1 else 'HAM'}")
