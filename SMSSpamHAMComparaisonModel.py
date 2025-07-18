@@ -9,6 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, classification_report
+from sklearn.model_selection import GridSearchCV
 import joblib
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -31,16 +32,30 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 # 3. Définition des modèles à comparer
 def get_models():
     models = {
-        "Naive Bayes": MultinomialNB(),
-        "Logistic Regression": LogisticRegression(max_iter=1000),
-        "SVM": SVC(probability=True, kernel='linear'),
-        "Random Forest": RandomForestClassifier(n_estimators=100),
-        "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+        # "Naive Bayes": MultinomialNB(),
+        # "Logistic Regression": LogisticRegression(max_iter=1000),
+        # "SVM": SVC(probability=True, kernel='linear'),
+        # "Random Forest": RandomForestClassifier(n_estimators=100),
+        # "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric='logloss'),
+        "Logistic Regression": {
+            'model': LogisticRegression(max_iter=1000, solver='liblinear'),
+            'params': {
+                'classifier__penalty': ['l1', 'l2'],
+                'classifier__C': [0.1, 1, 10]
+            }
+        },
+        "SVM": {
+            'model': SVC(probability=True),
+            'params': {
+                'classifier__C': [0.1, 1, 10],
+                'classifier__kernel': ['linear', 'rbf']
+            }
+        }
     }
     return models
 
 # 4. Fonction d'évaluation
-def train_and_evaluate(models, X_train, X_test, y_train, y_test):
+# def train_and_evaluate(models, X_train, X_test, y_train, y_test):
     results = {}
     
     for name, model in models.items():
@@ -76,10 +91,51 @@ def train_and_evaluate(models, X_train, X_test, y_train, y_test):
             continue
     
     return results
+def train_and_evaluate(models, X_train, X_test, y_train, y_test):
+    results = {}
+    
+    for name, config in models.items():
+        try:
+            pipeline = Pipeline([
+                ('vectorizer', CountVectorizer()),
+                ('classifier', config['model'])
+            ])
+            
+            # Ajout de GridSearchCV
+            grid_search = GridSearchCV(
+                pipeline,
+                param_grid=config['params'],
+                cv=5,
+                scoring='accuracy'
+            )
+            
+            grid_search.fit(X_train, y_train)
+            
+            # Meilleurs paramètres trouvés
+            best_params = grid_search.best_params_
+            
+            # Évaluation avec le meilleur modèle
+            best_model = grid_search.best_estimator_
+            y_pred = best_model.predict(X_test)
+            # Get classification report as dictionary
+            report = classification_report(y_test, y_pred, output_dict=True)
+            results[name] = {
+                'accuracy': accuracy_score(y_test, y_pred),
+                'precision': report['weighted avg']['precision'],
+                'recall': report['weighted avg']['recall'],
+                'f1': report['weighted avg']['f1-score'],
+                'best_params': grid_search.best_params_,
+                'model': best_model
+            }
+            
+        except Exception as e:
+            print(f"Erreur avec {name}: {str(e)}")
+    
+    return results
 
 # 5. Interface Streamlit
 def main():
-    st.title("🔄 Comparaison d'Algorithmes de Détection de Spam")
+    st.title("Comparaison d'Algorithmes de Détection de Spam")
     
     # Chargement des modèles
     models = get_models()
