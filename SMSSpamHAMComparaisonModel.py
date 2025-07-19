@@ -173,7 +173,7 @@ def main():
     
     if st.button("Prédire"):
         try:
-            model = joblib.load('best_model.pkl')
+            model = joblib.load('model_SPAM_HAM.pkl')
             prediction = model.predict([user_input])[0]
             proba = model.predict_proba([user_input])[0]
             
